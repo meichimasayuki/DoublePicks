@@ -1,0 +1,22 @@
+fileFormatVersion: 2
+guid: 8453bea42bce4ff468f02a013d6e2f3e
+timeCreated: 1508470841
+licenseType: Free
+TrueTypeFontImporter:
+  externalObjects: {}
+  serializedVersion: 4
+  fontSize: 16
+  forceTextureCase: -2
+  characterSpacing: 0
+  characterPadding: 1
+  includeFontData: 1
+  fontName: Arphic Gothic4 SuperBold JIS
+  fontNames:
+  - Arphic Gothic4 SuperBold JIS
+  fallbackFontReferences: []
+  customCharacters: 
+  fontRenderingMode: 0
+  ascentCalculationMode: 1
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
