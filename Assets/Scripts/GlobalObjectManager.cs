@@ -14,7 +14,7 @@ public class GlobalObjectManager : MonoBehaviour
     public static GlobalObjectManager GetSharedObject() { return sharedObject; }
 
     public int GetGamePlayerNum() { return m_GamePlayerNum; }
-    public int GetPlayerHP() { return m_GamePlayerNum; }
+    public int GetPlayerHP() { return m_PlayerHP; }
 
     public void Awake()
     {
