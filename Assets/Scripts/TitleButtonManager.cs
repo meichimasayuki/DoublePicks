@@ -20,7 +20,8 @@ public class TitleButtonManager : MonoBehaviour {
     // チュートリアルボタン
     public void TouchTutorialButton()
     {
-        SceneManager.LoadScene("Tutorial");
+        /* まだ仕様わからないので遷移なし */
+        //SceneManager.LoadScene("Tutorial");
     }
 
     // プレイヤー人数の選択

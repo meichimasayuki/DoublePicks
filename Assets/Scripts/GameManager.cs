@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 
 public class GameManager : MonoBehaviour
 {
@@ -9,7 +10,7 @@ public class GameManager : MonoBehaviour
     private const float NEXT_TURM_WAITTIME = 0.5f;                  // 0.5秒の指定あり
     private const float PICK_FAILURE_WAITTIME = 1.0f;               // 1.0秒の指定あり
     private const float DOUBLE_CHALLENGE_MESSAGE_WAITTIME = 2.0f;   // 2.0秒の指定あり
-    private const float CARD_MOVE_WAITTIME = 0.8f;
+    private const float CARD_MOVE_WAITTIME = 0.95f;
     private const float CARD_OUT_WAITTIME = 0.2f;
     private const float COUNT_UP_WAITTIME = 0.03f;
     private const float COUNT_DOWN_WAITTIME = 0.2f;
@@ -20,7 +21,14 @@ public class GameManager : MonoBehaviour
     public GameObject m_PullButton;
     public GameObject m_Announce;
     public GameObject m_JudgmentButton;
+    public GameObject m_BlackMask;
+    public GameObject m_HelpPanel;
+    public List<Text> m_HelpTextList;
+    public GameObject m_TitleBackPanel;
     public Text m_DeckNumText;
+
+    public GameObject m_Miss;
+    public GameObject m_Success;
 
     private GameObject[] m_Cards;
     private const int LOST_CARD_NUM = 5;
@@ -61,6 +69,8 @@ public class GameManager : MonoBehaviour
     {
         m_Announce.SetActive(false);
         m_DeckNum = TOTAL_CARD_NUM - LOST_CARD_NUM;
+        gameObject.GetComponent<DeckManager>().CreateDeck();
+        gameObject.GetComponent<DeckManager>().Shuffle(m_DeckNum);
         StartCoroutine(GameReady());
     }
 
@@ -90,6 +100,7 @@ public class GameManager : MonoBehaviour
     {
         // プレイヤーの動作待ち(引くorパス)
         NextPlayerInfo();
+        NextTrunPlayer();
         if (IsDoubleJudg())
         {
             yield return new WaitForSeconds(OTHERS_WAITTIME);
@@ -104,7 +115,7 @@ public class GameManager : MonoBehaviour
             PassAction();
             yield return null;
         }
-
+        SetPullButton(false); // 念のため
         m_IsPlaying = false;
         yield return new WaitForSeconds(CARD_MOVE_WAITTIME);
 
@@ -123,6 +134,7 @@ public class GameManager : MonoBehaviour
         {
             SearchFieldCard();
             yield return new WaitForSeconds(PICK_FAILURE_WAITTIME);
+            yield return new WaitForSeconds(PICK_FAILURE_WAITTIME);
             yield return PenaltyScore();
             yield return ResetField();
             m_DoubleMode = DOUBLE_MODE.NONE;
@@ -140,8 +152,12 @@ public class GameManager : MonoBehaviour
                     yield return PenaltyScore();
                     yield return ResetField();
                 }
+                else
+                {
+                    yield return new WaitForSeconds(PICK_FAILURE_WAITTIME);
+                }
             }
-            else if(m_ActionMode == ACTION_MODE.PASS)
+            else if (m_ActionMode == ACTION_MODE.PASS)
             {
                 SearchFieldCard();
                 yield return PassPenalty();
@@ -157,14 +173,7 @@ public class GameManager : MonoBehaviour
             m_Turn++;
             StartCoroutine(GameLoop());
         }
-        else StartCoroutine(GameEnd());
-    }
-
-    // ゲーム終了
-    private IEnumerator GameEnd()
-    {
-        Debug.Log("終わり！");
-        yield return null;
+        else WhoWins();
     }
 
 
@@ -203,7 +212,7 @@ public class GameManager : MonoBehaviour
 
     private IEnumerator SetFirstCard()
     {
-        gameObject.GetComponent<DeckManager>().PullCard(m_Turn);
+        gameObject.GetComponent<DeckManager>().PullCard(m_DeckNum);
         m_Turn++;
         m_DeckNum--;
         UpdateDeckCount();
@@ -257,10 +266,15 @@ public class GameManager : MonoBehaviour
             m_DeckNum--;
             UpdateDeckCount();
             if (m_DeckNum <= 0) gameObject.GetComponent<SpriteRenderer>().color = new Color(1.0f, 1.0f, 1.0f, 0.0f);
+            if (pullcrads[0] == 10) break; // DoubleCard を引いたら強制的に抜けます　MG 気を付けて
             if ((IsDoubleJudg() || IsDoubleChallenge()) && i == 0) yield return new WaitForSeconds(CARD_MOVE_WAITTIME);
             else yield return null;
         }
-        if (IsDoubleJudg()) { m_IsChallengeSuccess = IsChallengeSuccess(pullcrads[0], pullcrads[1]); }
+        if (IsDoubleJudg()) {
+            m_IsChallengeSuccess = IsChallengeSuccess(pullcrads[0], pullcrads[1]);
+            yield return new WaitForSeconds(CARD_MOVE_WAITTIME);
+            AnimationSuccess(m_IsChallengeSuccess);
+        }
     }
 
     // フィールドのカードを探す
@@ -289,7 +303,25 @@ public class GameManager : MonoBehaviour
                 if (index == m_Cards[n].GetComponent<CardController>().GetCardIndex()) { success = false; }
             }
         }
+        AnimationSuccess(success);
         return success;
+    }
+
+    private void AnimationSuccess(bool success)
+    {
+        Animator animator;
+        if (success)
+        {
+            animator = m_Success.GetComponent(typeof(Animator)) as Animator;
+            animator.speed = 1;
+            animator.Play("Success");
+        }
+        else
+        {
+            animator = m_Miss.GetComponent(typeof(Animator)) as Animator;
+            animator.speed = 1;
+            animator.Play("Miss");
+        }
     }
 
     // 失敗したカード以外の得点の合算・消去
@@ -304,12 +336,18 @@ public class GameManager : MonoBehaviour
             m_Cards[i].GetComponent<CardController>().OutOfScreen();
             yield return new WaitForSeconds(CARD_OUT_WAITTIME);
         }
-        int targetPlayerIndex = !m_IsChallengeSuccess ? (m_Turn - 1) % m_PlayerNum : ((m_Turn - 1) % m_PlayerNum) - 1;
+        int targetPlayerIndex = (m_Turn - 1) % m_PlayerNum;
+        if (m_IsChallengeSuccess)
+        {
+            targetPlayerIndex -= 1;
+            if (targetPlayerIndex < 0) targetPlayerIndex = m_PlayerNum - 1;
+            m_IsChallengeSuccess = false;
+        }
         if (targetPlayerIndex < 0) targetPlayerIndex = m_PlayerNum - 1;
         int beforeScore = m_PlayerHP[targetPlayerIndex];
         m_PlayerHP[targetPlayerIndex] -= totalScore;
         if (m_PlayerHP[targetPlayerIndex] <= 0) m_PlayerHP[targetPlayerIndex] = 0;
-        yield return AddPlayerScore(beforeScore, m_PlayerHP[targetPlayerIndex], targetPlayerIndex);
+        yield return UpdatePlayerScore(beforeScore, m_PlayerHP[targetPlayerIndex], targetPlayerIndex);
     }
 
     // フィールドのカード初期状態にもどす
@@ -321,9 +359,14 @@ public class GameManager : MonoBehaviour
     }
 
     // スコアボードを更新します
-    private IEnumerator AddPlayerScore(int beforeScore, int afterScore, int playerIndex)
+    private IEnumerator UpdatePlayerScore(int beforeScore, int afterScore, int target)
     {
-        yield return m_PlayerBoard.GetComponent<PlayerBoardManager>().AddPlayerScore(beforeScore, afterScore, playerIndex + 1);
+        yield return m_PlayerBoard.GetComponent<PlayerBoardManager>().UpdatePlayerScore(beforeScore, afterScore, target);
+    }
+
+    private void NextTrunPlayer()
+    {
+        m_PlayerBoard.GetComponent<PlayerBoardManager>().NextTrunPlayer(m_Turn - 1);
     }
 
     // ゲーム終了判定
@@ -331,9 +374,9 @@ public class GameManager : MonoBehaviour
     {
         bool fin = false;
         if (m_DeckNum <= 0) fin = true;
-        for(int i = 0; i < m_PlayerNum; i++)
+        for (int i = 0; i < m_PlayerNum; i++)
         {
-            if(m_PlayerHP[i] <= 0) fin = true;
+            if (m_PlayerHP[i] <= 0) fin = true;
         }
         if (IsDoubleChallenge())
         {
@@ -347,37 +390,42 @@ public class GameManager : MonoBehaviour
     /// スワイプ機能
     /// どうしたものか。。。
     /// </summary>
+    private const float SWIPE_LENGTH = 10.0f;
     private Vector2 m_StartPosition;
     private Vector2 m_EndPosition;
     private bool m_IsSwipe;
-    private const float SWIPE_LENGTH = 130.0f;
-    private const float DECK_POSITION_X = 1076.0f;
-    private const float CARD_WIDTH = 139.0f;
-    private const float DECK_POSITION_Y = 414.0f;
-    private const float CARD_HEIGHT = 214.0f;
-    private const float CARD_SPAN = 18.0f;
     private void PassAction()
     {
         if (GetFieldCardNum() <= 1) { return; }
         if (Input.GetMouseButtonDown(0))
         {
             m_StartPosition = Input.mousePosition;
-            float x = DECK_POSITION_X - ((CARD_WIDTH + CARD_SPAN) * GetFieldCardNum());
-            float y = DECK_POSITION_Y;
-            if (GetFieldCardNum() > 7) { y -= (CARD_HEIGHT + CARD_SPAN); }
-
-            if (m_StartPosition.x >= x && m_StartPosition.x <= x + CARD_WIDTH)
+            Ray ray = Camera.main.ScreenPointToRay(m_StartPosition);
+            RaycastHit hit = new RaycastHit();
+            if (Physics.Raycast(ray, out hit))
             {
-                if (m_StartPosition.y >= y && m_StartPosition.y <= y + CARD_HEIGHT) { m_IsSwipe = true; }
+                CardController card = hit.collider.gameObject.GetComponent<CardController>();
+                if (card)
+                {
+                    int endcard = m_Cards[m_Cards.Length - 1].GetComponent<CardController>().GetCardIndex();
+                    if (endcard == card.GetCardIndex())
+                    {
+                        m_IsSwipe = true;
+                        Debug.Log("パス可能なカードです");
+                    }
+                }
+                Debug.Log(hit.collider.gameObject.name);
             }
         }
+
         if (Input.GetMouseButtonUp(0))
         {
             m_EndPosition = Input.mousePosition;
             if (m_IsSwipe)
             {
                 float dis = Vector2.Distance(m_StartPosition, m_EndPosition);
-                if (dis > SWIPE_LENGTH) {
+                if (dis > SWIPE_LENGTH)
+                {
                     m_ActionMode = ACTION_MODE.PASS;
                     m_IsPlaying = true;
                     SetPullButton(false);
@@ -396,7 +444,7 @@ public class GameManager : MonoBehaviour
         int targetPlayerIndex = (m_Turn - 1) % m_PlayerNum;
         int beforeScore = m_PlayerHP[targetPlayerIndex];
         m_PlayerHP[targetPlayerIndex] -= score;
-        yield return AddPlayerScore(beforeScore, m_PlayerHP[targetPlayerIndex], targetPlayerIndex);
+        yield return UpdatePlayerScore(beforeScore, m_PlayerHP[targetPlayerIndex], targetPlayerIndex);
         gameObject.GetComponent<DeckManager>().PassFieldNum();
         yield return new WaitForSeconds(OTHERS_WAITTIME);
     }
@@ -409,6 +457,103 @@ public class GameManager : MonoBehaviour
     {
         m_DeckNumText.GetComponent<Text>().text = "" + m_DeckNum;
     }
+
+
+
+
+
+
+
+
+
+    // 誰がかったか
+    private void WhoWins()
+    {
+        int winerScore = 0;
+        int winerIndex = 0;
+        bool isDrow = false;
+        for (int i = 0; i < m_PlayerNum; i++)
+        {
+            if (winerScore < m_PlayerHP[i])
+            {
+                winerScore = m_PlayerHP[i];
+                winerIndex = i;
+            }
+        }
+        for (int i = 0; i < m_PlayerNum; i++)
+        {
+            if (winerIndex == i) continue;
+            if (winerScore == m_PlayerHP[i])
+            {
+                isDrow = true;
+                break;
+            }
+        }
+        WinerAnnounce(winerIndex, isDrow);
+    }
+    private void WinerAnnounce(int index, bool isDrow)
+    {
+        m_BlackMask.SetActive(true);
+        Text[] winerText = m_BlackMask.gameObject.GetComponentsInChildren<Text>();
+        string text = isDrow ? "DROW GAME" : "WIN : PLAYER" + (index + 1).ToString();
+        winerText[0].text = text;
+    }
+
+
+    // タイトルボタン
+    public void TouchTitleButton()
+    {
+        SceneManager.LoadScene("Title");
+    }
+
+    // リトライボタン
+    public void TouchRetryButton()
+    {
+        SceneManager.LoadScene("MainGame");
+    }
+
+    // ヘルプボタン
+    private bool m_IsHelp = false;
+    public void TouchHelpButton()
+    {
+        List<int> list = gameObject.GetComponent<DeckManager>().GetCardIndex(m_DeckNum+1, TOTAL_CARD_NUM - LOST_CARD_NUM);
+        Debug.Log(list.Count);
+        if (!m_IsHelp)
+        {
+            m_HelpPanel.SetActive(true);
+            for (int i = 0; i < m_HelpTextList.Count; i++)
+            {
+                int deno = (i + 2);
+                if (i == 8) deno = 13;
+                else if (i == 9) deno = 3;
+
+                int pullnum = 0;
+                for(int n = 0; n < list.Count; n++)
+                {
+                    Debug.Log(list[n]);
+                    if (i + 1 == list[n]) pullnum++;
+                }
+                m_HelpTextList[i].text = pullnum.ToString() + "/" + deno.ToString();
+            }
+            m_IsHelp = true;
+        }
+    }
+    public void TouchExitButton()
+    {
+        m_IsHelp = false;
+        m_HelpPanel.SetActive(false);
+    }
+
+    // タイトルボタン
+    public void TouchTitleBackButton()
+    {
+        m_TitleBackPanel.SetActive(true);
+    }
+    public void TouchNoButton()
+    {
+        m_TitleBackPanel.SetActive(false);
+    }
+
 
     /*
      *
@@ -434,9 +579,9 @@ public class GameManager : MonoBehaviour
     private bool IsChallengeSuccess(int firstcard, int secondcard)
     {
         bool success = true;
-        if(m_JudgColor == JUDG_COLOR.RED)
+        if (m_JudgColor == JUDG_COLOR.RED)
         {
-            if(firstcard <= 4 || secondcard <= 4) { success = false; }
+            if (firstcard <= 4 || secondcard <= 4) { success = false; }
         }
         if (m_JudgColor == JUDG_COLOR.BLUE)
         {

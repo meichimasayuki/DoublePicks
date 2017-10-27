@@ -22,6 +22,7 @@ GameObject:
   - component: {fileID: 212872806103535332}
   - component: {fileID: 114940654131836750}
   - component: {fileID: 95226511817769270}
+  - component: {fileID: 65334492115645684}
   m_Layer: 1
   m_Name: Card
   m_TagString: Card
@@ -37,11 +38,23 @@ Transform:
   m_GameObject: {fileID: 1556170563154194}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.55, y: 0.55, z: 1}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!65 &65334492115645684
+BoxCollider:
+  m_ObjectHideFlags: 1
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 100100000}
+  m_GameObject: {fileID: 1556170563154194}
+  m_Material: {fileID: 13400000, guid: 5b50602c108c24c44a962f9ee0db5528, type: 2}
+  m_IsTrigger: 1
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Size: {x: 1.5, y: 2.3, z: 1}
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!95 &95226511817769270
 Animator:
   serializedVersion: 3
@@ -112,5 +125,5 @@ SpriteRenderer:
   m_Size: {x: 3.33, y: 5.16}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
-  m_WasSpriteAssigned: 1
+  m_WasSpriteAssigned: 0
   m_MaskInteraction: 0

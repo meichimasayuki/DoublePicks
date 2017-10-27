@@ -35,14 +35,8 @@ public class DeckManager : MonoBehaviour {
     };
     private List<Card> m_CardList = new List<Card>();
 
-
-    void Start () {
-        CreateDeck();
-        Shuffle();
-    }
-
     // デッキの作成
-    private void CreateDeck()
+    public void CreateDeck()
     {
         for (int type = 0; type < CARD_TYPE_NUM; type++)
         {
@@ -69,12 +63,12 @@ public class DeckManager : MonoBehaviour {
     }
 
     // カードの順番を決めます
-    private void Shuffle()
+    public void Shuffle(int first_card)
     {
         for (int num = 0; num < CARD_MAX_NUM;)
         {
             int random = Random.Range(0, CARD_MAX_NUM);
-            if (num == 0 && random >= CARD_MAX_NUM - CARD_DOUBLE_NUM) continue;     // 一番最初にDoubleカードが来ないように  
+            if (num == first_card && random >= CARD_MAX_NUM - CARD_DOUBLE_NUM) continue;     // 一番最初にDoubleカードが来ないように  
             bool issame = false;
             for (int conut = 0; conut < m_Order.Count; conut++)
             {
@@ -94,7 +88,7 @@ public class DeckManager : MonoBehaviour {
         card.GetComponent<CardController>().SetCardParam(m_CardList[m_Order[cardnum]].GetCardSprite(), m_CardList[m_Order[cardnum]].GetCardIndex());
         const float CARD_WIDTH = 2.1f;
         const float CARD_HEIGHT = 3.1f;
-        Vector3 targetPosition = new Vector3(CARD_WIDTH + CARD_WIDTH * (m_FieldNum % 6), CARD_HEIGHT * (m_FieldNum >= 6 ? 1 : 0), 0.0f);
+        Vector3 targetPosition = new Vector3(CARD_WIDTH + CARD_WIDTH * (m_FieldNum % 6), CARD_HEIGHT * (m_FieldNum >= 6 ? 1 : 0), 0.1f * m_FieldNum);
         card.GetComponent<CardController>().SetTargetPosition(transform.position - targetPosition);
         if(m_CardList[m_Order[cardnum]].GetCardIndex() == 10)
         {
@@ -104,6 +98,16 @@ public class DeckManager : MonoBehaviour {
         return m_CardList[m_Order[cardnum]].GetCardIndex();
     }
 
+    public List<int> GetCardIndex(int num, int total)
+    {
+        List<int> indexList = new List<int>();
+        Debug.Log("num = " + num);
+        for(int i = num; i <= total; i++)
+        {
+            indexList.Add(m_CardList[m_Order[i]].GetCardIndex());
+        }
+        return indexList;
+    }
     public void ResetFieldNum() { m_FieldNum = 1; }
     public void PassFieldNum() { m_FieldNum--; }
 }
